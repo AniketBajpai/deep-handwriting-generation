@@ -1,0 +1,6 @@
+admin/*
+**.pyc
+notebooks/.ipynb_checkpoints/*
+papers/*
+notes
+data/*
