@@ -1,6 +1,10 @@
 admin/*
 **.pyc
+__pycache__/*
 notebooks/.ipynb_checkpoints/*
 papers/*
 notes
 data/*
+logs/*
+runs/*
+checkpoints/*
