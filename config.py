@@ -1,6 +1,9 @@
 # Data
-stroke_file_path = './data/strokes.npy'
-text_file_path = './data/sentences.txt'
+stroke_train_file_path = './data/strokes_train.npy'
+stroke_test_file_path = './data/strokes_test.npy'
+text_train_file_path = './data/sentences_train.txt'
+text_test_file_path = './data/sentences_test.txt'
+num_chars = 76
 
 # Model
 # LSTM
@@ -14,16 +17,23 @@ lstm_900_dropout = 0.0
 # Mixture Model
 num_mixture_components = 20
 
+# Attention
+K = 10
+
 # Gradient clipping
-output_clip = 100
-lstm_clip = 10
+grad_output_clip = 100
+grad_lstm_clip = 10
 
 # Optimizer
 lr = 1e-4
 alpha = 0.95
-momentum = 0.9
+momentum = 0.1
+epsilon = 1e-4
+
+# Regularization
+l2_reg_lambda = 1e-2
 
 # Training
-MAX_EPOCHS = 20
+MAX_EPOCHS = 50
 log_freq = 100
 plot_freq = 100
