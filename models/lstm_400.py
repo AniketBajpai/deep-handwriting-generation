@@ -85,4 +85,11 @@ class UncondHandwritingGenerator(nn.Module):
         )
         loss_eos = eos_loss(e, target_eos_seq)
         loss = loss_positional + loss_eos
+
+        # Add gradient clipping
+        torch.nn.utils.clip_grad_value_(loss, config.output_clip)
+        torch.nn.utils.clip_grad_value_(lstm1_output, config.lstm_clip)
+        torch.nn.utils.clip_grad_value_(lstm2_output, config.lstm_clip)
+        torch.nn.utils.clip_grad_value_(lstm3_output, config.lstm_clip)
+
         return loss_positional, loss_eos, loss

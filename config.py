@@ -14,6 +14,10 @@ lstm_900_dropout = 0.0
 # Mixture Model
 num_mixture_components = 20
 
+# Gradient clipping
+output_clip = 100
+lstm_clip = 10
+
 # Optimizer
 lr = 1e-4
 alpha = 0.95
