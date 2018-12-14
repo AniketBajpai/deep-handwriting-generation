@@ -12,6 +12,7 @@ import argparse
 import models.lstm_400 as lstm_400
 import models.lstm_900 as lstm_900
 from dataloader import DataLoader
+from loss import positional_loss, eos_loss
 import config
 
 parser = argparse.ArgumentParser()
@@ -93,10 +94,30 @@ for epoch in range(start_epoch, config.MAX_EPOCHS):
 
         # forward pass
         if is_conditional:
-            loss_positional, loss_eos, loss = model(
-                hwrt_sequences, char_sequences)
+            mdl_parameters = model(hwrt_sequences, char_sequences)
         else:
-            loss_positional, loss_eos, loss = model(hwrt_sequences)
+            mdl_parameters = model(hwrt_sequences)
+        
+        # Calculate loss
+        e, pi, mu1, mu2, sigma1, sigma2, rho = mdl_parameters
+        seq_len = hwrt_sequences.shape[0]
+        m = config.num_mixture_components
+        target_sequence = hwrt_sequences[1:, :]     # discard first target
+        # each dim: (seq_len-1, 1)
+        target_eos_seq, target_x1_seq, target_x2_seq = torch.split(
+            target_sequence, 1, dim=1)
+        target_x1_seq_expanded = target_x1_seq.expand(seq_len - 1, m)
+        target_x2_seq_expanded = target_x2_seq.expand(seq_len - 1, m)
+        # each target dim (seq_len-1, m)
+        target_eos_seq = target_eos_seq.squeeze(dim=1)
+
+        loss_positional = positional_loss(
+            (mu1, mu2, sigma1, sigma2, rho),
+            (target_x1_seq_expanded, target_x2_seq_expanded),
+            pi
+        )
+        loss_eos = eos_loss(e, target_eos_seq)
+        loss = loss_positional + loss_eos
 
         # backward pass
         loss.backward()
@@ -114,9 +135,10 @@ for epoch in range(start_epoch, config.MAX_EPOCHS):
         if i % config.log_freq == 0:
             logger.debug('Iteration {}: Loss- Total: {} Positional: {} EOS: {}'.format(
                 i, loss_positional, loss_eos, loss))
-            tb_log.log_value('loss_positional', loss_positional, i)
-            tb_log.log_value('loss_eos', loss_eos, i)
-            tb_log.log_value('loss', loss, i)
+            counter = config.MAX_EPOCHS * config.examples_per_epoch + i
+            tb_log.log_value('loss_positional', loss_positional, counter)
+            tb_log.log_value('loss_eos', loss_eos, counter)
+            tb_log.log_value('loss', loss, counter)
 
     # Plot statistics after epoch
     logger.info('Epoch {}: Loss- Total: {} Positional: {} EOS: {}'.format(epoch,

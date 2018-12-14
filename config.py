@@ -35,5 +35,6 @@ l2_reg_lambda = 1e-2
 
 # Training
 MAX_EPOCHS = 50
+examples_per_epoch = 6000
 log_freq = 100
 plot_freq = 100

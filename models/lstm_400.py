@@ -1,9 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 import config
-from loss import positional_loss, eos_loss
+from utils import compute_mdl_parameters
 
 torch.manual_seed(1)
 
@@ -50,10 +51,6 @@ class UncondHandwritingGenerator(nn.Module):
         # Batch size fixed to 1
 
         seq_len = hwrt_sequence.shape[0]
-        target_sequence = hwrt_sequence[1:, :]     # discard first target
-        # each dim: (seq_len-1, 1)
-        target_eos_seq, target_x1_seq, target_x2_seq = torch.split(
-            target_sequence, 1, dim=1)
 
         # Input to LSTM dim: (seq_len, 1, 3)
         # lstm_output dim: (seq_len, 1, 900)
@@ -67,11 +64,10 @@ class UncondHandwritingGenerator(nn.Module):
         lstm3_input = lstm2_output + \
             self.skip_input_transform2(hwrt_sequence_unsqueezed)
         lstm3_output, self.hidden3 = self.lstm3(lstm3_input, self.hidden3)
-
         lstm_output = lstm3_output + \
             self.skip_output_transform2(lstm2_output) + \
             self.skip_output_transform1(lstm1_output)
-        lstm_output = lstm_output.squeeze()    # (seq_len, 900)
+        lstm_output = lstm_output.squeeze(dim=1)    # (seq_len, 900)
 
         # Gradient clippinjg of lstm hidden states
         nn.utils.clip_grad_value_(lstm1_output, config.grad_lstm_clip)
@@ -80,7 +76,8 @@ class UncondHandwritingGenerator(nn.Module):
         nn.utils.clip_grad_value_(lstm_output, config.grad_lstm_clip)
 
         output_sequence = self.output_transform(lstm_output)
-        output_sequence = output_sequence[:-1, :]  # discard last output
+        if output_sequence.shape[0] > 1:
+            output_sequence = output_sequence[:-1, :]  # discard last output
         # output dim: (seq_len-1, 121)
 
         # Gradient clipping of outputs
@@ -92,23 +89,13 @@ class UncondHandwritingGenerator(nn.Module):
         pi_hat, mu1_hat, mu2_hat, sigma1_hat, sigma2_hat, rho_hat = torch.split(
             output_sequence[:, 1:], m, dim=1)
 
-        e = torch.sigmoid(e_hat)    # (seq_len-1)
-        pi = F.softmax(pi_hat, dim=0)
+        mdl_parameters_hat = (e_hat, pi_hat, mu1_hat,
+                              mu2_hat, sigma1_hat, sigma2_hat, rho_hat)
+        e, pi, mu1, mu2, sigma1, sigma2, rho = compute_mdl_parameters(
+            mdl_parameters_hat)
+        # e: (seq_len-1) others: (seq_len-1, m)
 
-        target_x1_seq_expanded = target_x1_seq.expand(seq_len - 1, m)
-        target_x2_seq_expanded = target_x2_seq.expand(seq_len - 1, m)
-        # each target dim (seq_len-1, m)
-        target_eos_seq = target_eos_seq.squeeze()
-
-        loss_positional = positional_loss(
-            (mu1_hat, mu2_hat, sigma1_hat, sigma2_hat, rho_hat),
-            (target_x1_seq_expanded, target_x2_seq_expanded),
-            pi
-        )
-        loss_eos = eos_loss(e, target_eos_seq)
-        loss = loss_positional + loss_eos
-
-        return loss_positional, loss_eos, loss
+        return (e, pi, mu1, mu2, sigma1, sigma2, rho)
 
 
 class CondHandwritingGenerator(nn.Module):
@@ -181,7 +168,7 @@ class CondHandwritingGenerator(nn.Module):
         lstm1_output, self.hidden1 = self.lstm1(lstm_input, self.hidden1)
 
         # Attention mechanism
-        p = self.attention_transform(lstm1_output.squeeze())     # (seq_len, 3K)
+        p = self.attention_transform(lstm1_output.squeeze(dim=1))     # (seq_len, 3K)
         alpha_hat, beta_hat, kappa_hat = torch.split(
             p, self.num_attention_mixture_components, dim=1)
         alpha = torch.exp(alpha_hat)
@@ -213,7 +200,7 @@ class CondHandwritingGenerator(nn.Module):
         lstm_output = lstm3_output + \
             self.skip_output_transform2(lstm2_output) + \
             self.skip_output_transform1(lstm1_output)
-        lstm_output = lstm_output.squeeze()    # (seq_len, 900)
+        lstm_output = lstm_output.squeeze(dim=1)    # (seq_len, 900)
 
         # Gradient clippinjg of lstm hidden states
         nn.utils.clip_grad_value_(lstm1_output, config.grad_lstm_clip)

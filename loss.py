@@ -3,17 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def positional_loss(parameters, targets, weights):
+def positional_loss(offset_parameters, targets, weights):
     # parameters of bivariate distribution
-    # mu1, mu2, sigma1, sigma2, rho = parameters
-    mu1_hat, mu2_hat, sigma1_hat, sigma2_hat, rho_hat = parameters
+    # mu1_hat, mu2_hat, sigma1_hat, sigma2_hat, rho_hat = offset_parameters
+    mu1, mu2, sigma1, sigma2, rho = offset_parameters
     x1, x2 = targets
-
-    mu1 = mu1_hat
-    mu2 = mu2_hat
-    sigma1 = torch.exp(sigma1_hat)
-    sigma2 = torch.exp(sigma2_hat)
-    rho = torch.tanh(rho_hat)   # each dim (seq_len-1, m)
 
     z = ((x1 - mu1) / sigma1)**2 + ((x2 - mu2) / sigma2)**2 - \
         2 * rho * (x1 - mu1) * (x2 - mu2) / (sigma1 * sigma2)

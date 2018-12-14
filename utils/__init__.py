@@ -1,5 +1,7 @@
 import numpy
 from matplotlib import pyplot
+import torch
+import torch.nn.functional as F
 
 
 def plot_stroke(stroke, save_name=None):
@@ -34,6 +36,20 @@ def plot_stroke(stroke, save_name=None):
                 bbox_inches='tight',
                 pad_inches=0.5)
         except Exception:
-            print "Error building image!: " + save_name
+            print("Error building image!: " + save_name)
 
     pyplot.close()
+
+
+def compute_mdl_parameters(mdl_parameters_hat):
+    e_hat, pi_hat, mu1_hat, mu2_hat, sigma1_hat, sigma2_hat, rho_hat = mdl_parameters_hat
+
+    e = torch.sigmoid(e_hat)
+    pi = F.softmax(pi_hat, dim=1)
+    mu1 = mu1_hat
+    mu2 = mu2_hat
+    sigma1 = torch.exp(sigma1_hat)
+    sigma2 = torch.exp(sigma2_hat)
+    rho = torch.tanh(rho_hat)
+
+    return (e, pi, mu1, mu2, sigma1, sigma2, rho)
