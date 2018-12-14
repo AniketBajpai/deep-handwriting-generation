@@ -2,6 +2,9 @@
 
 Implementation of paper [Generating Sequences with Recurrent Neural Networks]((https://arxiv.org/pdf/1308.0850.pdf))
 
+## Installation
+`` conda env create -f environment.yml ``
+
 ## Unconditional Handwriting Generation
 
 Implemented 2 models
