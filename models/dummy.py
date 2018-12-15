@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import models.lstm_400 as lstm_400
 import models.lstm_900 as lstm_900
 import config
+from utils import sentence_to_tensor
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -19,6 +20,10 @@ def load_model(name, ckpt):
     elif name == 'unconditional_400':
         model = lstm_400.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.num_mixture_components)
         ckpt_path = './checkpoints/unconditional_400/{}.pth'.format(
+            ckpt)
+    elif name == 'conditional_400':
+        model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
+        ckpt_path = './checkpoints/conditional_400/{}.pth'.format(
             ckpt)
 
     model.eval()
@@ -93,14 +98,37 @@ def generate_unconditionally(model, random_seed=1):
     return stroke_np
 
 
-def generate_conditionally(text='welcome to lyrebird', random_seed=1):
+def generate_conditionally(model, text='welcome to lyrebird', random_seed=1):
     # Input:
     #   text - str
     #   random_seed - integer
 
     # Output:
     #   stroke - numpy 2D-array (T x 3)
-    pass
+    
+    np.random.seed(random_seed)
+    length_stroke = np.random.randint(400, 1200)
+    print('Length of stroke', length_stroke)
+
+    global device
+    text_tensor = sentence_to_tensor(text)
+    text_tensor = text_tensor.to(device)
+    x = torch.zeros([1, 3]).to(device)  # input to model
+    x[0, 0] = 1          # eos_prob at beginning of stroke
+    stroke = []            # stores list of parameters for stroke
+    stroke.append(x)
+    model.init_hidden()
+
+    for t in range(length_stroke):
+        mdl_parameters = model(x, text_tensor)
+        y = sample_y(mdl_parameters)
+        x = y   # Output fed as input at next timestep
+        stroke.append(x)    # stroke[t] = x
+        
+    # Convert stroke to numpy array
+    stroke_np = [s.data.cpu().numpy() for s in stroke]
+    stroke_np = np.array(stroke_np).squeeze()
+    return stroke_np
 
 
 def recognize_stroke(stroke):
