@@ -181,6 +181,7 @@ class CondHandwritingGenerator(nn.Module):
         w = torch.mm(phi_t_u, char_sequence)        # (seq,len, num_chars)
         w = torch.unsqueeze(w, 1)                   # (seq,len, 1, num_chars)
         w_prev = w
+        self.attention_map = phi_t_u
 
         lstm2_input = lstm1_output + \
             self.skip_input_transform2(

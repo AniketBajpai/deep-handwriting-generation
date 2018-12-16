@@ -1,5 +1,5 @@
 import numpy as np
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 
@@ -8,7 +8,7 @@ import config
 
 def plot_stroke(stroke, save_name=None):
     # Plot a single example.
-    f, ax = pyplot.subplots()
+    f, ax = plt.subplots()
 
     x = np.cumsum(stroke[:, 1])
     y = np.cumsum(stroke[:, 2])
@@ -30,17 +30,52 @@ def plot_stroke(stroke, save_name=None):
     ax.axes.get_yaxis().set_visible(False)
 
     if save_name is None:
-        pyplot.show()
+        plt.show()
     else:
         try:
-            pyplot.savefig(
+            plt.savefig(
                 save_name,
                 bbox_inches='tight',
                 pad_inches=0.5)
         except Exception:
             print("Error building image!: " + save_name)
 
-    pyplot.close()
+    plt.close()
+
+
+def plot_attention_map(stroke, text, attention_map):
+    assert attention_map.shape[0] == len(stroke) - 1
+    assert attention_map.shape[1] == len(text)
+    
+    f, axes = plt.subplots(nrows=2, ncols=1)
+
+    x = np.cumsum(stroke[:, 1])
+    y = np.cumsum(stroke[:, 2])
+
+    size_x = x.max() - x.min() + 1.
+    size_y = y.max() - y.min() + 1.
+    # f.set_size_inches(5. * size_x / size_y, 5.)
+
+    attention_map_img = np.flip(attention_map.T, 1)
+    axes[0].imshow(attention_map_img, interpolation='nearest', cmap='gray')
+    axes[0].set_yticks(range(len(text)))
+    axes[0].set_yticklabels(text[::-1], rotation=45)
+
+    axes[0].axes.get_xaxis().set_visible(False)
+    # axes[0].grid()
+
+    cuts = np.where(stroke[:, 0] == 1)[0]
+    start = 0
+
+    for cut_value in cuts:
+        axes[1].plot(x[start:cut_value], y[start:cut_value],
+                'k-', linewidth=3)
+        start = cut_value + 1
+    axes[1].axis('equal')
+    axes[1].axes.get_xaxis().set_visible(False)
+    axes[1].axes.get_yaxis().set_visible(False)   
+    
+    plt.show()
 
 
 def sentence_to_tensor(sentence):

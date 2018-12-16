@@ -27,7 +27,7 @@ def load_model(name, ckpt):
             ckpt)
     elif name == 'conditional_400':
         model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
-        ckpt_path = '../checkpoints/conditional_400/{}.pth'.format(
+        ckpt_path = './checkpoints/conditional_400/{}.pth'.format(
             ckpt)
     elif name == 'conditional_400_w_noise':
         model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
@@ -124,6 +124,7 @@ def generate_conditionally(model, text='welcome to lyrebird', random_seed=1):
     x = torch.zeros([1, 3]).to(device)  # input to model
     x[0, 0] = 1          # eos_prob at beginning of stroke
     stroke = []            # stores list of parameters for stroke
+    attention_maps = []    # stores attention maps at each stroke
     stroke.append(x)
     model.init_hidden()
 
@@ -132,11 +133,17 @@ def generate_conditionally(model, text='welcome to lyrebird', random_seed=1):
         y = sample_y(mdl_parameters)
         x = y   # Output fed as input at next timestep
         stroke.append(x)    # stroke[t] = x
+        attention_maps.append(model.attention_map)
         
     # Convert stroke to numpy array
     stroke_np = [s.data.cpu().numpy() for s in stroke]
     stroke_np = np.array(stroke_np).squeeze()
-    return stroke_np
+
+    # Convert attention maps to numpy array
+    attention_maps_np = [am.data.cpu().numpy() for am in attention_maps]
+    attention_maps_np = np.array(attention_maps_np).squeeze()
+
+    return stroke_np, attention_maps_np
 
 
 def recognize_stroke(stroke):
