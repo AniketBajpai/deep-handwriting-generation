@@ -15,15 +15,23 @@ def load_model(name, ckpt):
     global device
     if name == 'unconditional_900':
         model = lstm_900.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
-        ckpt_path = './checkpoints/unconditional_900/{}.pth'.format(
+        ckpt_path = '../checkpoints/unconditional_900/{}.pth'.format(
+            ckpt)
+    elif name == 'unconditional_900_w_noise':
+        model = lstm_900.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
+        ckpt_path = '../checkpoints/unconditional_900_w_noise/{}.pth'.format(
             ckpt)
     elif name == 'unconditional_400':
         model = lstm_400.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.num_mixture_components)
-        ckpt_path = './checkpoints/unconditional_400/{}.pth'.format(
+        ckpt_path = '../checkpoints/unconditional_400/{}.pth'.format(
             ckpt)
     elif name == 'conditional_400':
         model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
-        ckpt_path = './checkpoints/conditional_400/{}.pth'.format(
+        ckpt_path = '../checkpoints/conditional_400/{}.pth'.format(
+            ckpt)
+    elif name == 'conditional_400_w_noise':
+        model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
+        ckpt_path = '../checkpoints/conditional_400_w_noise/{}.pth'.format(
             ckpt)
 
     model.eval()
