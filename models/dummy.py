@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import models.lstm_400 as lstm_400
-import models.lstm_900 as lstm_900
+import models.lstm_multilayer as lstm_multilayer
+import models.lstm_singlelayer as lstm_singlelayer
 import config
 from utils import sentence_to_tensor
 
@@ -14,23 +14,23 @@ def load_model(name, ckpt):
     """ Load model {name} from checkpoint no. ckpt """
     global device
     if name == 'unconditional_900':
-        model = lstm_900.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
+        model = lstm_singlelayer.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
         ckpt_path = '../checkpoints/unconditional_900/{}.pth'.format(
             ckpt)
     elif name == 'unconditional_900_w_noise':
-        model = lstm_900.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
+        model = lstm_singlelayer.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_900, config.num_mixture_components)
         ckpt_path = '../checkpoints/unconditional_900_w_noise/{}.pth'.format(
             ckpt)
     elif name == 'unconditional_400':
-        model = lstm_400.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.num_mixture_components)
+        model = lstm_multilayer.UncondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.num_mixture_components)
         ckpt_path = '../checkpoints/unconditional_400/{}.pth'.format(
             ckpt)
     elif name == 'conditional_400':
-        model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
+        model = lstm_multilayer.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
         ckpt_path = './checkpoints/conditional_400/{}.pth'.format(
             ckpt)
     elif name == 'conditional_400_w_noise':
-        model = lstm_400.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
+        model = lstm_multilayer.CondHandwritingGenerator(device, config.INPUT_DIM, config.HIDDEN_DIM_400, config.K, config.num_mixture_components)
         ckpt_path = '../checkpoints/conditional_400_w_noise/{}.pth'.format(
             ckpt)
 
@@ -119,7 +119,7 @@ def generate_conditionally(model, text='welcome to lyrebird', random_seed=1):
     print('Length of stroke', length_stroke)
 
     global device
-    text_tensor = sentence_to_tensor(text)
+    text_tensor = sentence_to_tensor(text, config.num_chars)
     text_tensor = text_tensor.to(device)
     x = torch.zeros([1, 3]).to(device)  # input to model
     x[0, 0] = 1          # eos_prob at beginning of stroke

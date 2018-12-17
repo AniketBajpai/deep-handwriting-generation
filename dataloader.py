@@ -28,42 +28,54 @@ class DataLoader(object):
         self.train_dataset_size = len(self.strokes_train)
         self.test_dataset_size = len(self.strokes_test)
 
-    def get_minibatch(self, is_conditional):
+    def get_minibatch(self, task_type, is_conditional):
         ''' generator to yield next minibatch '''
         # Only for batch size 1
         # TODO: add support for general batch sizes
-        if is_conditional:
+        if task_type == 'gen':
+            if is_conditional:
+                for idx in range(self.train_dataset_size):
+                    stroke = self.strokes_train[idx]
+                    text = self.texts_train[idx]
+                    stroke_tensor = torch.from_numpy(stroke)
+                    y_onehot = sentence_to_tensor(text, config.num_chars)
+                    yield (stroke_tensor, y_onehot)
+            else:
+                for stroke in self.strokes_train:
+                    stroke_tensor = torch.from_numpy(stroke)
+                    # print(stroke_tensor.size())
+                    yield stroke_tensor    # dim (len_stroke, 3)
+        elif task_type == 'rec':
             for idx in range(self.train_dataset_size):
                 stroke = self.strokes_train[idx]
                 text = self.texts_train[idx]
                 stroke_tensor = torch.from_numpy(stroke)
-                y_onehot = sentence_to_tensor(text)
+                text = config.sos_token + text + config.eos_token
+                num_chars = config.num_chars + 3    # <sos>, <eos>, space
+                y_onehot = sentence_to_tensor(text, num_chars)
                 yield (stroke_tensor, y_onehot)
-        else:
-            for stroke in self.strokes_train:
-                stroke_tensor = torch.from_numpy(stroke)
-                # print(stroke_tensor.size())
-                yield stroke_tensor    # dim (len_stroke, 3)
 
-    def get_random_examples(self, num_examples, type, is_conditional):
-        if type == 'train':
+    def get_random_examples(self, num_examples, phase, task_type, is_conditional):
+        if phase == 'train':
             dataset_size = self.train_dataset_size
             strokes = self.strokes_train
             texts = self.texts_train
-        elif type == 'test':
+        elif phase == 'test':
             dataset_size = self.test_dataset_size
             strokes = self.strokes_test
             texts = self.texts_test
         
+        if task_type == 'gen':
+            num_chars = config.num_chars
+        elif task_type == 'rec':
+            num_chars = config.num_chars + 3
+        
         random_idxs = random.sample(range(dataset_size), num_examples)
         picked_strokes = [torch.from_numpy(strokes[i]) for i in random_idxs]
         if is_conditional:
-            picked_texts = [sentence_to_tensor(texts[i]) for i in random_idxs]
-        
+            picked_texts = [sentence_to_tensor(texts[i], num_chars) for i in random_idxs]
+
         if is_conditional:
             return zip(picked_strokes, picked_texts)
         else:
             return picked_strokes
-            
-
-

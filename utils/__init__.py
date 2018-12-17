@@ -78,13 +78,16 @@ def plot_attention_map(stroke, text, attention_map):
     plt.show()
 
 
-def sentence_to_tensor(sentence):
+def sentence_to_tensor(sentence, num_chars):
     """ Converts sentence into tensor of one-hot encoded chars """
     chars = list(sentence)
-    unique_chars = """!"#'()+,-./0123456789:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"""
+    unique_chars = """!"#'()+,-./0123456789:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz """
+    assert config.sos_token not in unique_chars
+    assert config.eos_token not in unique_chars
+    unique_chars = unique_chars + config.sos_token + config.eos_token
     char_indices = [unique_chars.find(c) for c in chars]
     y_onehot = np.array(char_indices)
-    y_onehot = (np.arange(config.num_chars) ==
+    y_onehot = (np.arange(num_chars) ==
                 y_onehot[:, None]).astype(np.float32)
     y_onehot = torch.from_numpy(y_onehot)
     return y_onehot

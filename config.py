@@ -4,12 +4,16 @@ stroke_test_file_path = './data/strokes_test.npy'
 text_train_file_path = './data/sentences_train.txt'
 text_test_file_path = './data/sentences_test.txt'
 num_chars = 76
+max_stroke_length = 1191  # Automatically extract from data
+sos_token = '&'
+eos_token = '$'
 
 # Model
 # LSTM
 INPUT_DIM = 3
 HIDDEN_DIM_400 = 400
 HIDDEN_DIM_900 = 900
+HIDDEN_DIM_REC = 256
 OUTPUT_DIM = 3
 lstm_400_dropout = 0.0
 lstm_900_dropout = 0.0
