@@ -34,6 +34,8 @@ epsilon = 1e-4
 l2_reg_lambda = 1e-2
 
 # Training
-MAX_EPOCHS = 50
+MAX_EPOCHS = 100
+examples_per_epoch = 6000
 log_freq = 100
 plot_freq = 100
+num_test_examples = 10

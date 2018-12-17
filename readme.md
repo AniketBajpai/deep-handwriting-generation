@@ -1,6 +1,10 @@
 # Handwriting generation Task
 
-Implementation of paper [Generating Sequences with Recurrent Neural Networks]((https://arxiv.org/pdf/1308.0850.pdf))
+Implementation of "Generating Sequences with Recurrent Neural Networks" 
+[https://arxiv.org/abs/1308.0850](https://arxiv.org/abs/1308.0850)
+
+## Installation
+`` conda env create -f environment.yml ``
 
 ## Unconditional Handwriting Generation
 

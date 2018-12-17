@@ -44,7 +44,7 @@ def recognize_stroke(stroke):
 ```
 
 ### Evaluation
-To evaluate your work, please change the second block of imports of the `results.ipynb` notebook. Also, please provide us a link to a github repo to see your work.
+To evaluate your work, please change the second block of imports of the `results.ipynb` notebook.
 
 ## References:
  [1] https://arxiv.org/abs/1308.0850

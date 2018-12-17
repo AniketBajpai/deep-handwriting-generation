@@ -12,6 +12,7 @@ import argparse
 import models.lstm_400 as lstm_400
 import models.lstm_900 as lstm_900
 from dataloader import DataLoader
+from loss import positional_loss, eos_loss
 import config
 
 parser = argparse.ArgumentParser()
@@ -60,7 +61,7 @@ elif args.model == 'conditional_400':
 if args.reg is None:
     optimizer = optim.RMSprop(model.parameters(), lr=config.lr, eps=config.epsilon,
                               alpha=config.alpha, momentum=config.momentum)
-elif args.reg is 'l2':
+elif args.reg === 'l2':
     optimizer = optim.RMSprop(model.parameters(), lr=config.lr, eps=config.epsilon,
                               alpha=config.alpha, momentum=config.momentum,
                               weight_decay=config.l2_reg_lambda)
@@ -76,27 +77,54 @@ if args.ckpt:
 else:
     start_epoch = 0
 
+def forward(model, data, device, is_conditional):
+    # Clear gradients and initialize hidden at the start of each minibatch
+    model.zero_grad()
+    model.init_hidden()
+    
+    if is_conditional:
+        hwrt_sequences, char_sequences = data
+        hwrt_sequences, char_sequences = hwrt_sequences.to(
+            device), char_sequences.to(device)
+    else:
+        hwrt_sequences = data.to(device)
+
+    # seq_length = hwrt_sequences.shape[0]    # Assumption: batch size 1
+
+    # forward pass
+    if is_conditional:
+        mdl_parameters = model(hwrt_sequences, char_sequences)
+    else:
+        mdl_parameters = model(hwrt_sequences)
+    
+    # Calculate loss
+    e, pi, mu1, mu2, sigma1, sigma2, rho = mdl_parameters
+    seq_len = hwrt_sequences.shape[0]
+    m = config.num_mixture_components
+    target_sequence = hwrt_sequences[1:, :]     # discard first target
+    # each dim: (seq_len-1, 1)
+    target_eos_seq, target_x1_seq, target_x2_seq = torch.split(
+        target_sequence, 1, dim=1)
+    target_x1_seq_expanded = target_x1_seq.expand(seq_len - 1, m)
+    target_x2_seq_expanded = target_x2_seq.expand(seq_len - 1, m)
+    # each target dim (seq_len-1, m)
+    target_eos_seq = target_eos_seq.squeeze(dim=1)
+
+    loss_positional = positional_loss(
+        (mu1, mu2, sigma1, sigma2, rho),
+        (target_x1_seq_expanded, target_x2_seq_expanded),
+        pi
+    )
+    loss_eos = eos_loss(e, target_eos_seq)
+    loss = loss_positional + loss_eos
+    return loss, loss_positional, loss_eos
+
 for epoch in range(start_epoch, config.MAX_EPOCHS):
     for i, data in enumerate(dataloader.get_minibatch(is_conditional)):
         start_time = time.time()
 
-        if is_conditional:
-            hwrt_sequences, char_sequences = data
-            hwrt_sequences, char_sequences = hwrt_sequences.to(
-                device), char_sequences.to(device)
-        else:
-            hwrt_sequences = data.to(device)
-
-        # Clear gradients and initialize hidden at the start of each minibatch
-        model.zero_grad()
-        model.init_hidden()
-
-        # forward pass
-        if is_conditional:
-            loss_positional, loss_eos, loss = model(
-                hwrt_sequences, char_sequences)
-        else:
-            loss_positional, loss_eos, loss = model(hwrt_sequences)
+        # Forward pass
+        loss, loss_positional, loss_eos = forward(model, data, device, is_conditional) 
 
         # backward pass
         loss.backward()
@@ -105,7 +133,7 @@ for epoch in range(start_epoch, config.MAX_EPOCHS):
         optimizer.step()
 
         end_time = time.time()
-        seq_length = hwrt_sequences.shape[0]    # Assumption: batch size 1
+        
         time_elapsed = end_time - start_time
         # logger.debug('Time per iteration: {} Sequence length: {}'.format(
         #     time_elapsed, seq_length))
@@ -114,16 +142,46 @@ for epoch in range(start_epoch, config.MAX_EPOCHS):
         if i % config.log_freq == 0:
             logger.debug('Iteration {}: Loss- Total: {} Positional: {} EOS: {}'.format(
                 i, loss_positional, loss_eos, loss))
-            tb_log.log_value('loss_positional', loss_positional, i)
-            tb_log.log_value('loss_eos', loss_eos, i)
-            tb_log.log_value('loss', loss, i)
+            counter = config.MAX_EPOCHS * config.examples_per_epoch + i
+            # tb_log.log_value('loss_positional', loss_positional, counter)
+            # tb_log.log_value('loss_eos', loss_eos, counter)
+            # tb_log.log_value('loss', loss, counter)
 
     # Plot statistics after epoch
+    random_train_examples = dataloader.get_random_examples(config.num_test_examples, 'train', is_conditional)
+    random_test_examples = dataloader.get_random_examples(config.num_test_examples, 'test', is_conditional)
+
+    train_loss = 0
+    train_loss_positional = 0
+    train_loss_eos = 0
+
+    for data in random_train_examples:
+        loss, loss_positional, loss_eos = forward(model, data, device, is_conditional)
+        train_loss += loss
+        train_loss_positional += loss_positional
+        train_loss_eos += loss_eos
+    
     logger.info('Epoch {}: Loss- Total: {} Positional: {} EOS: {}'.format(epoch,
-                                                                          loss_positional, loss_eos, loss))
-    tb_log.log_value('epoch_loss_positional', loss_positional, epoch)
-    tb_log.log_value('epoch_loss_eos', loss_eos, epoch)
-    tb_log.log_value('epoch_loss', loss, epoch)
+                                                                          train_loss_positional, train_loss_eos, train_loss))
+    tb_log.log_value('epoch_train_loss_positional', train_loss_positional, epoch)
+    tb_log.log_value('epoch_train_loss_eos', train_loss_eos, epoch)
+    tb_log.log_value('epoch_train_loss', train_loss, epoch)
+
+    test_loss = 0
+    test_loss_positional = 0
+    test_loss_eos = 0
+
+    for data in random_test_examples:
+        loss, loss_positional, loss_eos = forward(model, data, device, is_conditional)
+        test_loss += loss
+        test_loss_positional += loss_positional
+        test_loss_eos += loss_eos
+    
+    logger.info('Epoch {}: Loss- Total: {} Positional: {} EOS: {}'.format(epoch,
+                                                                          test_loss_positional, test_loss_eos, test_loss))
+    tb_log.log_value('epoch_test_loss_positional', test_loss_positional, epoch)
+    tb_log.log_value('epoch_test_loss_eos', test_loss_eos, epoch)
+    tb_log.log_value('epoch_test_loss', test_loss, epoch)
 
     # Save checkpoint
     ckpt_path = 'checkpoints/{}/{}.pth'.format(name, epoch)
